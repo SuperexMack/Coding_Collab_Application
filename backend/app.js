@@ -5,6 +5,7 @@ const { Server } = require("socket.io")
 const { exec } = require("child_process")
 const fs = require("fs")
 const cors = require("cors")
+const { UserRoom } = require("./Schema")
 
 const server = http.createServer(app)
 
@@ -26,19 +27,29 @@ const io = new Server(server , {
 
 // now we are going to work on the websocket
 
-let newCode = ''
+// let newCode = ''
 
 io.on("connection" , (socket)=>{
-    console.log("New client joined the coding club")
-    socket.emit("AlreadyAssignedCode" , newCode)
-    socket.on("CodeUpdated" , (AssignedCode)=>{
-        newCode = AssignedCode
-        socket.broadcast.emit("AlreadyAssignedCode",newCode)
+    // now we are going to make a room LOL
+
+    socket.on("Roomjoined" , (room)=>{
+        socket.join(room)
+        if (!global.rooms) {
+            global.rooms = {}
+        }
+        if (!global.rooms[room]) {
+            global.rooms[room] = "" // if room is newly made then just go and create a room with empty
+        }
+        socket.emit("AlreadyAssignedCode", global.rooms[room])
+    
     })
-    socket.on("disconnect", () => {
-        socket.broadcast.emit("AlreadyAssignedCode", newCode);
-    });
-})
+
+    socket.on("CodeUpdated" , ({room,code})=>{
+       global.rooms[room] = code
+        socket.to(room).emit("AlreadyAssignedCode",code)
+    })
+
+    })
 
 
 
