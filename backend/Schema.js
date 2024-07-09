@@ -20,7 +20,7 @@ async function Main(){
 
 const roomSchema = new mongoose.Schema({
     roomName: { type: String, required: true, unique: true },
-    code: { type: String, default: "" }
+    // password : {type:String , required:true}
 });
 
 

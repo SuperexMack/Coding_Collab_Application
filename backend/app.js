@@ -1,13 +1,12 @@
 const express = require("express")
 const app = express()
-const http = require("http")
 const { Server } = require("socket.io")
 const { exec } = require("child_process")
-const fs = require("fs")
-const cors = require("cors")
-const { UserRoom } = require("./Schema")
-
+const http = require("http")
 const server = http.createServer(app)
+const { UserRoom } = require("./Schema")
+const fs = require("fs")
+const cors = require('cors')
 
 app.use(cors({
     origin: "http://localhost:5173",
@@ -15,69 +14,97 @@ app.use(cors({
     allowedHeaders: ['Content-Type']
 }))
 
-app.use(express.json())
-
 const io = new Server(server, {
+
     cors: {
         origin: "http://localhost:5173",
-        methods: ["GET", "POST"],
-        allowedHeader: ['Content-Type']
+        methods: ['GET', 'POST'],
+        allowedHeaders: ['Content-Type']
     }
+
 })
 
-global.rooms = {}
+app.use(express.json());
+
+
+global.rooms = {};
+
+// creating the room
 
 io.on("connection", (socket) => {
-    socket.on("Roomjoined", async (room) => {
-        socket.join(room)
 
-        let checkRoom = await UserRoom.findOne({ roomName: room })
-        if (!checkRoom) {
-            checkRoom = new UserRoom({ roomName: room })
-            await checkRoom.save()
+    console.log("New client connected")
+
+    socket.on("AllocateRoom", async (MyallRooms) => {
+
+        socket.join(MyallRooms)
+        let checkUser = await UserRoom.findOne({ roomName: MyallRooms })
+        if (!checkUser) {
+            checkUser = new UserRoom({ roomName: MyallRooms })
+            await checkUser.save()
         }
 
-        socket.emit("AlreadyAssignedCode", global.rooms[room] || "")
+       
+        socket.emit("CodeArrived", global.rooms[MyallRooms] || "")
 
-        const rooms = await UserRoom.find({}, 'roomName')
-        io.emit("roomsUpdated", rooms.map(myroom => myroom.roomName))
+        const roomAllocation = await UserRoom.find({}, "roomName")
+        io.emit("RoomsUpdated", roomAllocation.map((r) =>
+            r.roomName
+        ))
     })
 
-    socket.on("CodeUpdated", async ({ room, code }) => {
-        global.rooms[room] = code
-        socket.to(room).emit("AlreadyAssignedCode", code)
+    socket.on("CodeUpdated", async ({ roomName, code }) => {
+        global.rooms[roomName] = code
+        socket.to(roomName).emit("CodeArrived", code)
     })
+
 })
 
-app.get("/rooms", async (req, res) => {
-    const rooms = await UserRoom.find({}, 'roomName');
+
+
+
+app.get("/getRooms", async (req, res) => {
+    let AllRooms = await UserRoom.find({}, "roomName")
     res.json({
-        allrooms: rooms.map(room => room.roomName)
+        AllRoomsAllocation: AllRooms.map((rooms) =>
+            rooms.roomName
+        )
     })
 })
+
+// Compiler Code
 
 app.post("/getCode", (req, res) => {
     let code = req.body.code
-    let InputFileName = `Input.cpp`;
-    let OutputFileName = `OUtput.exe`;
+    let InputFile = `input.cpp`;
+    let OutputFile = `output.exe`;
 
-    fs.writeFileSync(InputFileName, code)
+    fs.writeFileSync(InputFile, code)
 
-    exec(`g++ ${InputFileName} -o ${OutputFileName} && ${OutputFileName}`, (error, stdout, stderr) => {
-        fs.unlinkSync(InputFileName)
-        if (fs.existsSync(OutputFileName)) {
-            fs.unlinkSync(OutputFileName)
+    exec(`g++ ${InputFile} -o ${OutputFile} && ${OutputFile}`, (error, stdout, stderr) => {
+        fs.unlinkSync(InputFile);
+        if (fs.existsSync(OutputFile)) {
+            fs.unlinkSync(OutputFile)
         }
+
         if (error) {
-            res.json({ err: stderr })
-        } else {
-            res.json({ output: stdout })
+            res.json({
+                allerr: stderr
+            })
+        }
+        else {
+            res.json({
+                output: stdout
+            })
         }
     })
+
+
 })
 
-const PORT = 9000
+let PORT = 5000
 
 server.listen(PORT, () => {
-    console.log(`the server is running on port ${PORT}`)
+    console.log(`Server is running on the port Number ${PORT}`)
 })
+
