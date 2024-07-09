@@ -17,44 +17,46 @@ app.use(cors({
 
 app.use(express.json())
 
-const io = new Server(server , {
-    cors:{
+const io = new Server(server, {
+    cors: {
         origin: "http://localhost:5173",
-        methods : ["GET","POST"],
-        allowedHeader : ['Content-Type']
+        methods: ["GET", "POST"],
+        allowedHeader: ['Content-Type']
     }
 })
 
-// now we are going to work on the websocket
+global.rooms = {}
 
-// let newCode = ''
-
-io.on("connection" , (socket)=>{
-    // now we are going to make a room LOL
-
-    socket.on("Roomjoined" , (room)=>{
+io.on("connection", (socket) => {
+    socket.on("Roomjoined", async (room) => {
         socket.join(room)
-        if (!global.rooms) {
-            global.rooms = {}
+
+        let checkRoom = await UserRoom.findOne({ roomName: room })
+        if (!checkRoom) {
+            checkRoom = new UserRoom({ roomName: room })
+            await checkRoom.save()
         }
-        if (!global.rooms[room]) {
-            global.rooms[room] = "" // if room is newly made then just go and create a room with empty
-        }
-        socket.emit("AlreadyAssignedCode", global.rooms[room])
-    
+
+        socket.emit("AlreadyAssignedCode", global.rooms[room] || "")
+
+        const rooms = await UserRoom.find({}, 'roomName')
+        io.emit("roomsUpdated", rooms.map(myroom => myroom.roomName))
     })
 
-    socket.on("CodeUpdated" , ({room,code})=>{
-       global.rooms[room] = code
-        socket.to(room).emit("AlreadyAssignedCode",code)
+    socket.on("CodeUpdated", async ({ room, code }) => {
+        global.rooms[room] = code
+        socket.to(room).emit("AlreadyAssignedCode", code)
     })
+})
 
+app.get("/rooms", async (req, res) => {
+    const rooms = await UserRoom.find({}, 'roomName');
+    res.json({
+        allrooms: rooms.map(room => room.roomName)
     })
-
-
+})
 
 app.post("/getCode", (req, res) => {
-
     let code = req.body.code
     let InputFileName = `Input.cpp`;
     let OutputFileName = `OUtput.exe`;
@@ -67,24 +69,15 @@ app.post("/getCode", (req, res) => {
             fs.unlinkSync(OutputFileName)
         }
         if (error) {
-            res.json({
-                err: stderr
-            })
-        }
-        else {
-            res.json({
-                output: stdout
-            })
+            res.json({ err: stderr })
+        } else {
+            res.json({ output: stdout })
         }
     })
-
-
 })
 
 const PORT = 9000
 
 server.listen(PORT, () => {
-    console.log(`the server is runnnig in the port Number ${PORT}`)
+    console.log(`the server is running on port ${PORT}`)
 })
-
-
