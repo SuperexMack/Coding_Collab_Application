@@ -35,22 +35,50 @@ io.on("connection", (socket) => {
 
     console.log("New client connected")
 
-    socket.on("AllocateRoom", async (MyallRooms) => {
+    socket.on("AllocateRoom", async ({MyallRooms,mypassword}) => {
 
-        socket.join(MyallRooms)
         let checkUser = await UserRoom.findOne({ roomName: MyallRooms })
-        if (!checkUser) {
-            checkUser = new UserRoom({ roomName: MyallRooms })
-            await checkUser.save()
+
+        // let checkPasswordValue = await UserRoom.findOne({ password:mypassword})
+        
+        // if(!checkPasswordValue){
+        //     savingPassword = new UserRoom.findOne({password:mypassword})
+        //     await checkPasswordValue.save()
+        // }
+
+        // if (!checkUser) {
+        //     checkUser = new UserRoom({ roomName: MyallRooms })
+        //     await checkUser.save()
+        // }
+
+
+        if(checkUser){
+            if(checkUser.password === mypassword){
+                socket.join(MyallRooms)
+                socket.emit("CodeArrived", global.rooms[MyallRooms] || "")
+                socket.emit("roomJoined" , "success")
+                const roomAllocation = await UserRoom.find({}, "roomName")
+                io.emit("RoomsUpdated", roomAllocation.map((r) =>
+                    r.roomName
+                ))
+            }
+            else{
+                socket.emit("roomJoined" , "Wrong_Password")
+            }
         }
 
-       
-        socket.emit("CodeArrived", global.rooms[MyallRooms] || "")
-
-        const roomAllocation = await UserRoom.find({}, "roomName")
-        io.emit("RoomsUpdated", roomAllocation.map((r) =>
-            r.roomName
-        ))
+        else{
+            let newUser = new UserRoom({roomName:MyallRooms , password:mypassword})
+            await newUser.save()
+            socket.join(MyallRooms)
+            socket.emit("CodeArrived" , global.rooms[MyallRooms] || "")
+            socket.emit("roomJoined","success")
+            const roomAllocation = await UserRoom.find({}, "roomName")
+            io.emit("RoomsUpdated", roomAllocation.map((r) =>
+                r.roomName
+            ))
+        
+        }
     })
 
     socket.on("CodeUpdated", async ({ roomName, code }) => {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import MainPage from "../MainPage/MainPage"
 import axios from "axios"
 import io from "socket.io-client"
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 let socket 
 
@@ -12,6 +14,7 @@ function Room(){
     const [rooms , setRooms] = useState("")
     const [isRoom,setIsRoom] = useState(false)
     const [allRooms, setAllRooms] = useState([]);
+    const [mypassword ,  setMyPassword] = useState("")
 
 
     useEffect(()=>{
@@ -24,6 +27,16 @@ function Room(){
 
         socket.on("CodeArrived",(myoldcode)=>{
             setCode(myoldcode)
+        })
+
+        socket.on("roomJoined",(status)=>{
+            if(status === "success"){
+               toast.success("Room joined successfully!");
+                setIsRoom(true); 
+            }
+            else if(status ==="Wrong_Password"){
+                toast.error("No such room exists! or password is wrong");
+            }
         })
 
 
@@ -41,9 +54,11 @@ function Room(){
    }
 
      const createRoom = ()=>{
-        if(rooms){
-            setIsRoom(true);
-            socket.emit("AllocateRoom" , rooms)
+        if(rooms && mypassword){
+            socket.emit("AllocateRoom" , {MyallRooms:rooms,mypassword:mypassword})
+        }
+        else{
+            toast.error("Please enter both room name and password!");
         }
         
      }
@@ -85,9 +100,16 @@ function Room(){
         {!isRoom ? (
 
         <div>
-            <h1 className="text-6xl text-violet-700 relative left-[33%] top-[200px] w-[450px]">Room Allocation</h1>
-            <input onChange={(e)=>setRooms(e.target.value)} placeholder="Enter the Room Name" className="w-[500px] h-[50px] rounded-xl relative left-[30%] p-2 top-[230px]"></input>
-            <button onClick={createRoom} className="text-white text-[30px] relative top-[230px] left-[36%] bg-slate-600 p-2 rounded-xl">Create Room</button>
+            <h1 className="text-6xl text-violet-700 relative left-[33%] top-[200px] w-[450px]  mt-5">Room Allocation</h1>
+            <div className="h-[200px] relative w-full top-[200px] flex flex-col justify-center items-center flex-wrap">
+
+            <div className="flex flex-row justify-around w-[1000px] items-center h-[100px] flex-wrap">
+            <input  onChange={(e)=>setRooms(e.target.value)} placeholder="Enter the Room Name" className="w-[500px] h-[50px] rounded-xl p-2"></input>
+            <button onClick={createRoom} className="text-white text-[20px] w-[300px] h-[50px]  bg-slate-600 p-2 rounded-xl">Create Room</button>
+            </div>
+            
+            <input onChange={(e)=>setMyPassword(e.target.value)}  placeholder="Enter the Password of the room" className="w-[500px] h-[50px] rounded-xl p-2"></input>
+            </div>
 
             <div className="h-auto w-full flex flex-row flex-wrap relative top-[300px] justify-center items-center">
                 {allRooms.map((giveMeRooms,index)=>(
@@ -119,9 +141,9 @@ function Room(){
         <button onClick={CallerFunction} className="relative top-[280px] text-white text-4xl left-[160px] bg-black p-5 rounded-xl w-[400px]">Compile</button>
         </div>
         )
-
-        
+  
     }
+    <ToastContainer />
         </>
     )
 }
