@@ -34,6 +34,7 @@ This application is a real-time collaborative C++ coding platform. Users can cre
 
     # For the frontend
     cd ../frontend
+    cd compile
     npm install
     ```
 
